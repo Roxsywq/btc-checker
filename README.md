@@ -20,7 +20,8 @@ A high-performance Bitcoin wallet checker that uses parallel processing to scan 
 ## Installation (Termux)
 
 ```bash
-bash <(curl -s https://raw.githubusercontent.com/yourusername/btc_checker/main/install.sh)```
+bash <(curl -s https://raw.githubusercontent.com/yourusername/btc_checker/main/install.sh)
+```
 
 
 ## Usage
