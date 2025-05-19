@@ -15,13 +15,13 @@ A high-performance Bitcoin wallet checker that uses parallel processing to scan 
 
 - **Speed**: 50-500 addresses/second (depending on CPU and internet speed)
 - **Efficiency**: Checks addresses in parallel batches
-- **Reliability**: Automatic retry for failed API requests
+- **Reliability**: Automatic retry for failed API requests```
 
 ## Installation (Termux)
 
 ```bash
-bash <(curl -s https://raw.githubusercontent.com/yourusername/btc_checker/main/install.sh)
-```
+bash <(curl -s https://raw.githubusercontent.com/yourusername/btc_checker/main/install.sh)```
+
 
 ## Usage
 
