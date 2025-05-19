@@ -5,17 +5,26 @@ import hashlib
 import requests
 import base58
 import ecdsa
+import multiprocessing
 from colorama import init, Fore, Style
 
 init(autoreset=True)
 
+# Configuration
+MAX_WORKERS = multiprocessing.cpu_count() * 2  # Optimal worker count
+API_URL = "https://blockchain.info/q/addressbalance/"
+REQUEST_TIMEOUT = 15
+BATCH_SIZE = 100  # Number of addresses to check before displaying progress
+
 def banner():
-    os.system('clear')
+    os.system('clear' if os.name == 'posix' else 'cls')
     print(Fore.YELLOW + Style.BRIGHT + """
-    ╔═════════════════════════════════════════╗
-    ║      BTC Wallet Checker [Termux UI]    ║
-    ╚═════════════════════════════════════════╝
-    """)
+╔═════════════════════════════════════════╗
+║      BTC Wallet Checker ROXSYWQ                ║
+╚═════════════════════════════════════════╝
+""")
+    print(Fore.CYAN + f"Using {MAX_WORKERS} parallel workers")
+    print(Fore.MAGENTA + "Press CTRL+C to stop\n")
 
 def generate_private_key():
     return ''.join(random.choice('0123456789ABCDEF') for _ in range(64))
@@ -37,35 +46,67 @@ def public_key_to_address(public_key):
 
 def check_balance(address):
     try:
-        url = f'https://blockchain.info/q/addressbalance/{address}'
-        response = requests.get(url, timeout=10)
+        response = requests.get(f"{API_URL}{address}", timeout=REQUEST_TIMEOUT)
         if response.status_code == 200:
             balance = int(response.text) / 1e8
             return balance
-    except:
+    except requests.RequestException:
         pass
     return 0
 
-def main_loop():
-    count = 0
+def worker(results_queue, count_queue):
     while True:
-        count += 1
         private = generate_private_key()
         public = private_to_public_key(private)
         address = public_key_to_address(public)
         balance = check_balance(address)
-
+        
         if balance > 0:
-            print(Fore.GREEN + f"[{count}] Bulundu! {address} -> {balance} BTC")
-            with open('found.txt', 'a') as f:
-                f.write(f'{private} | {address} | {balance} BTC\n')
-        else:
-            print(Fore.CYAN + f"[{count}] {address} | Bakiye: 0 BTC")
+            results_queue.put((private, address, balance))
+        count_queue.put(1)
 
-        time.sleep(0.5)
+def main():
+    banner()
+    
+    # Create queues for communication
+    results_queue = multiprocessing.Queue()
+    count_queue = multiprocessing.Queue()
+    
+    # Start worker processes
+    processes = []
+    for _ in range(MAX_WORKERS):
+        p = multiprocessing.Process(target=worker, args=(results_queue, count_queue))
+        p.daemon = True
+        p.start()
+        processes.append(p)
+    
+    total_checked = 0
+    last_print = time.time()
+    
+    try:
+        while True:
+            # Display progress periodically
+            if time.time() - last_print >= 1.0:
+                # Get count of checked addresses
+                while not count_queue.empty():
+                    total_checked += count_queue.get()
+                
+                print(Fore.CYAN + f"Checked: {total_checked:,} addresses | Speed: {total_checked / (time.time() - start_time):.1f} addr/sec", end='\r')
+                last_print = time.time()
+            
+            # Check for found wallets
+            while not results_queue.empty():
+                private, address, balance = results_queue.get()
+                print(Fore.GREEN + f"\n[FOUND] {address} -> {balance} BTC")
+                with open('found.txt', 'a') as f:
+                    f.write(f'{private} | {address} | {balance} BTC\n')
+    
+    except KeyboardInterrupt:
+        print(Fore.RED + "\nStopping workers...")
+        for p in processes:
+            p.terminate()
+        print(Fore.YELLOW + f"Total addresses checked: {total_checked:,}")
 
 if __name__ == "__main__":
-    banner()
-    print(Fore.MAGENTA + "Başlatılıyor... CTRL+C ile durdurabilirsin.")
-    time.sleep(2)
-    main_loop()
+    start_time = time.time()
+    main()
