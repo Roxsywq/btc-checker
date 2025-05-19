@@ -1,6 +1,4 @@
-'
-'pip install colorama'
-'chmod +x start.sh
-./start.sh'
-
-'
+''
+"pip install colorama"
+"chmod +x start.sh
+./start.sh"
